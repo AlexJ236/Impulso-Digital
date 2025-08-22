@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pago con Criptomonedas - Impulso Digital</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header class="main-header">
+        <div class="header-container">
+            <h1 class="logo"><a href="index.html" style="text-decoration:none;color:#3498db;">Impulso Digital</a></h1>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div id="crypto-payment-container" class="payment-card">
+            <h2>Paga con USDT (BEP20)</h2>
+
+            <div id="product-summary" class="product-summary-card" style="margin-top: 20px;"></div>
+
+            <p style="text-align: center;">Escanea el QR o copia la dirección para realizar el pago:</p>
+            
+            <div class="qr-container">
+                <img src="images/USDT.jpg" alt="Código QR para pago con USDT" class="qr-code">
+            </div>
+
+            <div class="wallet-address">
+                <p>Dirección de la billetera (Red BEP20):</p>
+                <input type="text" id="wallet-address-input" value="0x39B29814f251e04550E3202E877b4B70F2FEEDE3" readonly>
+                <button id="copy-btn" class="btn btn-copy">Copiar</button>
+            </div>
+            
+            <form id="crypto-form">
+                <div class="form-group">
+                    <label for="full-name">Nombre completo</label>
+                    <input type="text" id="full-name" name="full-name" placeholder="Tu nombre y apellido" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Correo electrónico</label>
+                    <input type="email" id="email" name="email" placeholder="tu-correo@ejemplo.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="transaction-proof">Sube tu Comprobante de Pago</label>
+                    <input type="file" id="transaction-proof" name="transaction-proof" accept="image/*" required>
+                </div>
+                <div class="button-group">
+                    <button type="submit" class="btn btn-payment btn-buy">Enviar Comprobante</button>
+                </div>
+            </form>
+            
+            <p class="small-text"><a href="javascript:history.back()">Volver a opciones de pago</a></p>
+        </div>
+    </main>
+
+    <footer class="main-footer">
+        <p>Contacto: info@impulsodigital.com | &copy; 2024 Impulso Digital</p>
+    </footer>
+
+    <script>
+    let selectedProduct = null;
+    const urlParams = new URLSearchParams(window.location.search);
+    const courseId = urlParams.get('id');
+
+    // Función para cargar el resumen del producto (sin cambios)
+    async function loadProductSummary() {
+        if (!courseId) {
+            document.getElementById('product-summary').innerHTML = '<p>Error: No se ha especificado un producto.</p>';
+            return;
+        }
+        try {
+            const response = await fetch('data/courses.json');
+            const courses = await response.json();
+            selectedProduct = courses.find(c => c.id === courseId);
+            if (selectedProduct) {
+                document.getElementById('product-summary').innerHTML = `<img src="images/${selectedProduct.id}.jpg" alt="${selectedProduct.title}" class="product-image"><div class="product-details"><h3>Producto: ${selectedProduct.title}</h3><p>Precio a transferir: <strong>$${selectedProduct.price} USDT</strong></p></div>`;
+            } else {
+                 document.getElementById('product-summary').innerHTML = '<p>Error: Producto no encontrado.</p>';
+            }
+        } catch (error) {
+            console.error('Error al cargar el resumen del producto:', error);
+        }
+    }
+
+    // Lógica del botón de copiar (sin cambios)
+    document.getElementById('copy-btn').addEventListener('click', () => {
+        const input = document.getElementById('wallet-address-input');
+        input.select();
+        input.setSelectionRange(0, 99999); 
+        document.execCommand('copy');
+        alert('¡Dirección copiada al portapapeles!');
+    });
+    
+    // --- CAMBIOS AQUÍ ---
+    // Lógica del envío del formulario con estado de "Cargando"
+    document.getElementById('crypto-form').addEventListener('submit', async function(event) {
+        event.preventDefault();
+        
+        const form = event.target;
+        const submitButton = form.querySelector('button[type="submit"]'); // Obtenemos el botón
+        const originalButtonText = submitButton.textContent;
+
+        // Inicia el estado de carga
+        submitButton.disabled = true;
+        submitButton.textContent = 'Enviando...';
+
+        try {
+            const customerName = document.getElementById('full-name').value;
+            const customerEmail = document.getElementById('email').value;
+            const proofFile = document.getElementById('transaction-proof').files[0];
+
+            if (!customerName || !customerEmail || !proofFile) {
+                alert('Por favor, completa todos los campos y sube un comprobante.');
+                return; // No se quita el estado de carga aquí para que el usuario pueda corregir
+            }
+
+            const formData = new FormData();
+            formData.append('customerName', customerName);
+            formData.append('customerEmail', customerEmail);
+            formData.append('proof', proofFile);
+            formData.append('productName', selectedProduct.title);
+            formData.append('productPrice', selectedProduct.price);
+
+            const response = await fetch('/api/crypto-payment', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (response.ok) {
+                alert('¡Comprobante enviado con éxito! Verificaremos tu pago y te contactaremos pronto.');
+                form.reset();
+            } else {
+                throw new Error('Falló el envío del comprobante.');
+            }
+        } catch (error) {
+            console.error('Error al enviar el formulario:', error);
+            alert('Ocurrió un error al enviar tu comprobante. Por favor, inténtalo de nuevo.');
+        } finally {
+            // Finaliza el estado de carga, pase lo que pase
+            submitButton.disabled = false;
+            submitButton.textContent = originalButtonText;
+        }
+    });
+
+    // Cargar el producto al iniciar la página
+    document.addEventListener('DOMContentLoaded', loadProductSummary);
+    </script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pago con Tarjeta o PayPal - Impulso Digital</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://www.paypal.com/sdk/js?client-id=AYrKnlEYjuphxwUCZwEEl32Q9_bNOBzR3zupGLsInQGC0GYatHmZnear_KqpacNddrAz5l_Vw8UWcl6h&currency=USD"></script>
+</head>
+<body>
+
+    <header class="main-header">
+        <div class="header-container">
+            <h1 class="logo"><a href="index.html" style="text-decoration:none;color:#3498db;">Impulso Digital</a></h1>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div id="payment-form-container" class="payment-card">
+            <h2>Resumen del producto</h2>
+            <div id="product-summary" class="product-summary-card"></div>
+            
+            <div id="card-payment-form" class="payment-form">
+                <div class="form-group">
+                    <label for="full-name">Nombre completo</label>
+                    <input type="text" id="full-name" name="full-name" placeholder="Tu nombre y apellido" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Correo electrónico</label>
+                    <input type="email" id="email" name="email" placeholder="tu-correo@ejemplo.com" required>
+                </div>
+                
+                <p class="info-message">
+                    Una vez realizado el pago, revisa tu correo (incluida la carpeta SPAM). Recibirás el producto automáticamente.
+                </p>
+
+                <div id="paypal-button-container"></div>
+                
+                <p class="small-text"><a href="javascript:history.back()">Volver a opciones de pago</a></p>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>Contacto: info@impulsodigital.com | &copy; 2024 Impulso Digital</p>
+    </footer>
+
+    <script>
+        let selectedProduct = null;
+        const urlParams = new URLSearchParams(window.location.search);
+        const courseId = urlParams.get('id');
+        
+        function initPayPalButton() {
+            if (!selectedProduct) {
+                setTimeout(initPayPalButton, 100);
+                return;
+            }
+
+            paypal.Buttons({
+                createOrder: (data, actions) => {
+                    return fetch("/api/orders", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ courseId: selectedProduct.id }),
+                    })
+                    .then(response => response.json())
+                    .then(order => order.id);
+                },
+
+                onApprove: (data, actions) => {
+                    const customerName = document.getElementById('full-name').value;
+                    const customerEmail = document.getElementById('email').value;
+
+                    if (!customerName || !customerEmail) {
+                        alert('Por favor, completa tu nombre y correo electrónico para continuar.');
+                        return actions.restart();
+                    }
+
+                    // --- CAMBIO AQUÍ ---
+                    // Ahora también enviamos el 'courseId' al servidor
+                    return fetch(`/api/orders/${data.orderID}/capture`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            customerName: customerName,
+                            customerEmail: customerEmail,
+                            courseId: courseId // Añadimos el ID del curso
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(orderData => {
+                        console.log('Capture result', orderData);
+                        alert(`¡Pago completado con éxito! Recibirás tu producto en tu correo.`);
+                    });
+                },
+
+                onError: (err) => {
+                    console.error("Error en el proceso de pago de PayPal:", err);
+                    alert("Ocurrió un error al procesar tu pago. Por favor, inténtalo de nuevo.");
+                }
+            }).render('#paypal-button-container');
+        }
+
+        async function loadProductSummary() {
+            if (!courseId) {
+                document.getElementById('product-summary').innerHTML = '<p>Error: No se ha especificado un producto.</p>';
+                return;
+            }
+            try {
+                const response = await fetch('data/courses.json');
+                const courses = await response.json();
+                selectedProduct = courses.find(c => c.id === courseId);
+                if (selectedProduct) {
+                    document.getElementById('product-summary').innerHTML = `<img src="images/${selectedProduct.id}.jpg" alt="${selectedProduct.title}" class="product-image"><div class="product-details"><h3>Producto: ${selectedProduct.title}</h3><p>Precio: <strong>$${selectedProduct.price}</strong></p></div>`;
+                } else {
+                     document.getElementById('product-summary').innerHTML = '<p>Error: Producto no encontrado.</p>';
+                }
+            } catch (error) {
+                console.error('Error al cargar el resumen del producto:', error);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProductSummary().then(initPayPalButton);
+        });
+    </script>
+</body>
+</html>

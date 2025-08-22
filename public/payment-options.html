@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Opciones de Pago - Impulso Digital</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header class="main-header">
+        <div class="header-container">
+            <h1 class="logo"><a href="index.html" style="text-decoration:none;color:#3498db;">Impulso Digital</a></h1>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div id="payment-options-container" class="payment-card">
+            <h2>Elige tu opción de pago</h2>
+            <p>Por favor, selecciona cómo te gustaría pagar el pack:</p>
+            
+            <div class="payment-options-grid" style="display: flex; flex-direction: column; align-items: center; gap: 15px;">
+        <a href="#" id="whatsapp-link" class="btn btn-payment btn-transfer" style="width: 400px;">
+            Transferencia (BCP, Interbank, Yape, Plin)
+        </a>
+
+        <a href="#" id="card-link" class="btn btn-payment btn-card" style="width: 400px;">
+            Tarjeta / PayPal
+        </a>
+
+        <a href="#" id="crypto-link" class="btn btn-payment btn-crypto" style="width: 400px;">
+            USDT (BEP20)
+        </a>
+            </div>
+
+            <p class="small-text"><a href="index.html">Volver a la página principal</a></p>
+        </div>
+    </main>
+
+    <footer class="main-footer">
+        <p>&copy; 2025 Impulso Digital</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const courseId = urlParams.get('id');
+
+            if (courseId) {
+                // Configurar el enlace de WhatsApp dinámicamente
+                const whatsappBtn = document.getElementById('whatsapp-link');
+                const whatsappNumber = '51964390939'; // Tu número de WhatsApp
+                const message = `Hola, me gustaría comprar el pack con ID: ${courseId}. ¿Qué método de transferencia prefieres?`;
+                whatsappBtn.href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+
+                // Configurar el enlace del formulario de tarjeta
+                const cardBtn = document.getElementById('card-link');
+                cardBtn.href = `card-payment.html?id=${courseId}`;
+
+                // Configurar el enlace del formulario de criptomonedas
+                const cryptoBtn = document.getElementById('crypto-link');
+                cryptoBtn.href = `crypto-payment.html?id=${courseId}`;
+            }
+        });
+    </script>
+</body>
+</html>
