@@ -64,7 +64,7 @@ async function handleResponse(response) {
 app.post("/api/orders", async (req, res) => {
     try {
         const { courseId } = req.body;
-        const courses = require('../data/courses.json');
+        const courses = require('../../public/data/courses.json');
         const course = courses.find(c => c.id === courseId);
 
         if (!course) {
