@@ -1,11 +1,12 @@
 [build]
-  # Directorio donde están los archivos públicos del frontend.
   publish = "public"
-  # Directorio donde Netlify encontrará las funciones del servidor.
   functions = "netlify/functions"
 
 [[redirects]]
-  # Redirige todas las llamadas a '/api/*' a nuestra función del servidor.
   from = "/api/*"
   to = "/.netlify/functions/server/:splat"
   status = 200
+
+[functions]
+  # Ruta al archivo que la función necesita incluir
+  included_files = ["public/data/courses.json"]
