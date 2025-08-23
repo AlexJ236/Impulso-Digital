@@ -12,6 +12,9 @@ const { PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, GMAIL_USER, GMAIL_APP_PASSWORD }
 const app = express();
 const router = express.Router();
 
+// Middleware para que Express entienda JSON
+app.use(express.json());
+
 // --- CONFIGURACIÓN ---
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
@@ -21,13 +24,12 @@ const transporter = nodemailer.createTransport({
 });
 const baseURL = "https://api-m.paypal.com";
 
-// --- FUNCIÓN PARA LEER LOS CURSOS ---
+// --- VERSIÓN MEJORADA ---
 function getCourses() {
-    // __dirname es la ruta del directorio actual de la función
-    const filePath = require.resolve('./data/courses.json');
     try {
-        const fileContent = fs.readFileSync(filePath, 'utf8');
-        return JSON.parse(fileContent);
+        // require() puede importar archivos JSON directamente como objetos de JavaScript
+        const courses = require('./data/courses.json');
+        return courses;
     } catch (error) {
         console.error("ERROR AL LEER courses.json:", error);
         return [];
