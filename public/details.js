@@ -1,7 +1,7 @@
 // Variable global para almacenar todos los cursos
 let allCourses = [];
 
-// Función para mostrar las tarjetas de los cursos
+// Función para mostrar las tarjetas de los cursos (usada para "relacionados")
 function displayCourses(courses, containerId) {
     const coursesContainer = document.getElementById(containerId);
     coursesContainer.innerHTML = '';
@@ -30,8 +30,9 @@ function displayCourses(courses, containerId) {
         description.textContent = course.description;
 
         const price = document.createElement('span');
-        price.textContent = `$${course.price}`;
         price.className = 'price';
+        // --- MODIFICACIÓN AQUÍ ---
+        price.innerHTML = currencyService.convertAndFormat(course.price);
         
         const buttonContainer = document.createElement('div');
         buttonContainer.className = 'button-group';
@@ -86,13 +87,14 @@ async function loadCourseDetails() {
 
         const detailsContainer = document.getElementById('course-details-container');
         
+        // --- MODIFICACIÓN AQUÍ ---
         let detailsHtml = `
             <div class="course-details-card">
                 <img src="images/${course.id}.jpg" alt="Imagen del curso ${course.title}" class="details-image">
                 <div class="details-content">
                     <h1>${course.title}</h1>
                     <p class="details-description">${course.fullDescription.replace(/\n/g, '<br>')}</p>
-                    <p class="details-price">Precio: $${course.price}</p>
+                    <p class="details-price">Precio: ${currencyService.convertAndFormat(course.price)}</p>
                     <p class="details-category">Categoría: ${course.category}</p>
                     
                     <div class="details-button-group">
@@ -137,4 +139,9 @@ async function loadCourseDetails() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', loadCourseDetails);
+// --- MODIFICACIÓN AQUÍ ---
+// Inicia el conversor de moneda y luego carga los detalles del curso
+document.addEventListener('DOMContentLoaded', async () => {
+    await currencyService.init();
+    loadCourseDetails();
+});

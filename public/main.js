@@ -30,13 +30,13 @@ function displayCourses(courses, containerId) {
         description.textContent = course.description;
 
         const price = document.createElement('span');
-        price.textContent = `$${course.price}`;
         price.className = 'price';
+        // --- MODIFICACIÓN AQUÍ ---
+        price.innerHTML = currencyService.convertAndFormat(course.price);
         
         const buttonContainer = document.createElement('div');
         buttonContainer.className = 'button-group';
         
-        // Botón "Comprar" ahora redirige a la página de opciones de pago
         const buyBtn = document.createElement('a');
         buyBtn.href = `payment-options.html?id=${course.id}`;
         buyBtn.textContent = 'Comprar';
@@ -93,8 +93,7 @@ function displayFilterButtons(courses) {
     });
 }
 
-
-// La función principal asincrónica que se ejecuta al cargar la página
+// La función que carga los cursos del JSON
 async function loadCourses() {
     try {
         const response = await fetch('data/courses.json');
@@ -114,5 +113,9 @@ async function loadCourses() {
     }
 }
 
-// Llamar a la función principal para que se ejecute al cargar la página
-document.addEventListener('DOMContentLoaded', loadCourses);
+// --- MODIFICACIÓN AQUÍ ---
+// Inicia el conversor de moneda y luego carga los cursos
+document.addEventListener('DOMContentLoaded', async () => {
+    await currencyService.init();
+    loadCourses();
+});

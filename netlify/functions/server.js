@@ -1,18 +1,17 @@
 // Importar dependencias
 const express = require('express');
 const serverless = require('serverless-http');
-const path = 'path'; // No se utiliza directamente, pero es buena práctica tenerlo
-const fs = require('fs');
 const fetch = require('node-fetch');
 const nodemailer = require('nodemailer');
 const multer = require('multer');
 
+// Cargar variables de entorno
 const { PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, GMAIL_USER, GMAIL_APP_PASSWORD } = process.env;
 
 const app = express();
 const router = express.Router();
 
-// Middleware para que Express entienda JSON
+// Middleware para que Express entienda JSON. Esto es crucial.
 app.use(express.json());
 
 // --- CONFIGURACIÓN ---
@@ -24,12 +23,11 @@ const transporter = nodemailer.createTransport({
 });
 const baseURL = "https://api-m.paypal.com";
 
-// --- VERSIÓN MEJORADA ---
+// --- FUNCIÓN PARA LEER LOS CURSOS ---
 function getCourses() {
     try {
-        // require() puede importar archivos JSON directamente como objetos de JavaScript
-        const courses = require('./data/courses.json');
-        return courses;
+        // Usar require es más robusto en entornos serverless para archivos JSON
+        return require('./data/courses.json');
     } catch (error) {
         console.error("ERROR AL LEER courses.json:", error);
         return [];
@@ -58,22 +56,41 @@ async function handleResponse(response) {
         return response.json();
     }
     const errorMessage = await response.text();
+    console.error("Error en la respuesta de PayPal:", errorMessage);
     throw new Error(errorMessage);
 }
 
 
 // --- RUTAS DE LA API ---
 
-// Ruta para crear orden de PayPal
+// Ruta para crear orden de PayPal (con conversión de moneda)
 router.post("/orders", async (req, res) => {
     try {
-        const { courseId } = req.body;
+        const { courseId, currency } = req.body;
         const courses = getCourses();
         const course = courses.find(c => c.id === courseId);
         
         if (!course) {
             console.error(`Producto no encontrado para ID: ${courseId}`);
             return res.status(404).json({ error: "Producto no encontrado." });
+        }
+
+        let finalPrice = course.price.toString();
+        let finalCurrency = "USD";
+
+        if (currency && currency !== "USD") {
+            try {
+                const ratesResponse = await fetch(`https://api.frankfurter.app/latest?from=USD&to=${currency}`);
+                const ratesData = await ratesResponse.json();
+                if (ratesData.rates && ratesData.rates[currency]) {
+                    const rate = ratesData.rates[currency];
+                    const convertedValue = (course.price * rate).toFixed(2);
+                    finalPrice = convertedValue;
+                    finalCurrency = currency;
+                }
+            } catch (conversionError) {
+                console.error(`Error al convertir a ${currency}. Se usará USD.`, conversionError);
+            }
         }
 
         const accessToken = await generateAccessToken();
@@ -83,11 +100,20 @@ router.post("/orders", async (req, res) => {
         const payload = {
             intent: "CAPTURE",
             purchase_units: [{
-                amount: { currency_code: "USD", value: course.price.toString() },
+                amount: {
+                    currency_code: finalCurrency,
+                    value: finalPrice
+                },
                 description: `ID del Producto: ${course.id}`,
             }],
         };
-        const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` }, body: JSON.stringify(payload) });
+
+        const response = await fetch(url, { 
+            method: "POST", 
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` }, 
+            body: JSON.stringify(payload) 
+        });
+
         const data = await handleResponse(response);
         res.status(200).json(data);
     } catch (error) {
@@ -114,7 +140,12 @@ router.post("/orders/:orderID/capture", async (req, res) => {
             const course = courses.find(c => c.id === courseId);
             const productName = course ? course.title : 'Producto no encontrado';
             const amount = captureData.purchase_units[0].payments.captures[0].amount;
-            const mailOptions = { from: GMAIL_USER, to: 'thealexj9@gmail.com', subject: `✅ Nuevo Pago Recibido: ${productName}`, html: `<h1>¡Nueva Venta!</h1><p>Se ha recibido un nuevo pago a través de PayPal.</p><hr><h3>Detalles de la Compra:</h3><ul><li><b>Producto:</b> ${productName}</li><li><b>Monto:</b> ${amount.value} ${amount.currency_code}</li><li><b>ID de Transacción PayPal:</b> ${captureData.id}</li></ul><hr><h3>Datos del Cliente:</h3><ul><li><b>Nombre:</b> ${customerName}</li><li><b>Correo Electrónico:</b> ${customerEmail}</li></ul>` };
+            const mailOptions = { 
+                from: GMAIL_USER, 
+                to: GMAIL_USER, // Enviar a tu propio correo
+                subject: `✅ Nuevo Pago Recibido: ${productName}`, 
+                html: `<h1>¡Nueva Venta!</h1><p>Se ha recibido un nuevo pago a través de PayPal.</p><hr><h3>Detalles de la Compra:</h3><ul><li><b>Producto:</b> ${productName}</li><li><b>Monto:</b> ${amount.value} ${amount.currency_code}</li><li><b>ID de Transacción PayPal:</b> ${captureData.id}</li></ul><hr><h3>Datos del Cliente:</h3><ul><li><b>Nombre:</b> ${customerName}</li><li><b>Correo Electrónico:</b> ${customerEmail}</li></ul>` 
+            };
             
             transporter.sendMail(mailOptions, (error, info) => {
                 if (error) console.error("Error al enviar el correo:", error);
@@ -137,8 +168,8 @@ router.post('/crypto-payment', upload.single('proof'), (req, res) => {
 
         const mailOptions = {
             from: GMAIL_USER,
-            to: 'thealexj9@gmail.com',
-            subject: `🪙 Nuevo Comprobante Cripto: ${productName}`,
+            to: GMAIL_USER, // Enviar a tu propio correo
+            subject: `🪙 Nuevo Comprobante Crito: ${productName}`,
             html: `<h1>¡Nuevo Comprobante de Pago con Cripto!</h1><p>Un cliente ha subido un comprobante para su validación manual.</p><hr><h3>Detalles de la Compra:</h3><ul><li><b>Producto:</b> ${productName}</li><li><b>Monto a verificar:</b> ${productPrice} USDT</li></ul><hr><h3>Datos del Cliente:</h3><ul><li><b>Nombre:</b> ${customerName}</li><li><b>Correo Electrónico:</b> ${customerEmail}</li></ul><p>El comprobante de pago está adjunto en este correo.</p>`,
             attachments: [{ filename: proofFile.originalname, content: proofFile.buffer }],
         };

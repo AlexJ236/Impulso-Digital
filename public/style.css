@@ -533,3 +533,12 @@ h1, h2, h3 {
     height: 32px;
     fill: #FFF;
 }
+
+/* Estilo para el precio en moneda local */
+.local-price {
+    display: block;
+    font-size: 0.85em;
+    font-weight: normal;
+    color: #7f8c8d;
+    margin-top: 4px;
+}
