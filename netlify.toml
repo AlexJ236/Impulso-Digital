@@ -6,7 +6,3 @@
   from = "/api/*"
   to = "/.netlify/functions/server/:splat"
   status = 200
-
-[functions]
-  # Ruta al archivo que la función necesita incluir
-  included_files = ["public/data/courses.json"]
