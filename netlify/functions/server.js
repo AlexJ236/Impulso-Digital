@@ -112,7 +112,7 @@ app.post("/api/orders/:orderID/capture", async (req, res) => {
         const captureData = await handleResponse(response);
         if (captureData.status === 'COMPLETED') {
             console.log("Pago completado. Enviando correo de notificación...");
-            const courses = require('../data/courses.json');
+            const courses = require('./data/courses.json');
             const course = courses.find(c => c.id === courseId);
             const productName = course ? course.title : 'Producto no encontrado';
             const amount = captureData.purchase_units[0].payments.captures[0].amount;
