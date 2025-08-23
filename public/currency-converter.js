@@ -19,7 +19,7 @@ const currencyService = {
 
         try {
             // 1. Detectamos la moneda del usuario a través de su IP
-            const geoResponse = await fetch('http://ip-api.com/json/?fields=status,currency');
+            const geoResponse = await fetch('https://ip-api.com/json/?fields=status,currency');
             const geoData = await geoResponse.json();
             if (geoData.status === 'success' && geoData.currency) {
                 this.userCurrency = geoData.currency;
