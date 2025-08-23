@@ -502,3 +502,34 @@ h1, h2, h3 {
     color: #34495e;
     z-index: 11;
 }
+
+/* Estilos para el Botón Flotante de WhatsApp */
+.whatsapp-fab {
+    position: fixed;
+    width: 60px;
+    height: 60px;
+    bottom: 25px;
+    right: 25px;
+    background-color: #25D366;
+    color: #FFF;
+    border-radius: 50px;
+    text-align: center;
+    font-size: 30px;
+    box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.25);
+    z-index: 1000;
+    transition: transform 0.2s ease-in-out;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.whatsapp-fab:hover {
+    transform: scale(1.1);
+    background-color: #128C7E;
+}
+
+.whatsapp-fab svg {
+    width: 32px;
+    height: 32px;
+    fill: #FFF;
+}
