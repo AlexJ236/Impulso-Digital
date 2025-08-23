@@ -30,6 +30,11 @@ const transporter = nodemailer.createTransport({
 });
 const baseURL = "https://api-m.paypal.com";
 
+// --- Funciones auxiliares ---
+const generateAccessToken = async () => { try { const auth = Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_CLIENT_SECRET}`).toString("base64"); const response = await fetch(`${baseURL}/v1/oauth2/token`, { method: "POST", body: "grant_type=client_credentials", headers: { Authorization: `Basic ${auth}` } }); const data = await response.json(); return data.access_token; } catch (error) { console.error("Error al generar el token de acceso:", error); } };
+async function handleResponse(response) { if (response.status === 200 || response.status === 201) return response.json(); const errorMessage = await response.text(); throw new Error(errorMessage); }
+
+
 // --- RUTAS DE LA API (usando 'router') ---
 
 // Ruta para crear orden de PayPal
@@ -112,10 +117,6 @@ router.post('/crypto-payment', upload.single('proof'), (req, res) => {
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });
-
-// --- Funciones auxiliares (sin cambios) ---
-const generateAccessToken = async () => { try { const auth = Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_CLIENT_SECRET}`).toString("base64"); const response = await fetch(`${baseURL}/v1/oauth2/token`, { method: "POST", body: "grant_type=client_credentials", headers: { Authorization: `Basic ${auth}` } }); const data = await response.json(); return data.access_token; } catch (error) { console.error("Error al generar el token de acceso:", error); } };
-async function handleResponse(response) { if (response.status === 200 || response.status === 201) return response.json(); const errorMessage = await response.text(); throw new Error(errorMessage); }
 
 // --- Configuración final para Netlify ---
 app.use('/api/', router); // Usamos el prefijo '/api/' para todas las rutas del router
