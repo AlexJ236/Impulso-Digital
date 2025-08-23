@@ -1,8 +1,8 @@
 // Importar dependencias
 const express = require('express');
 const serverless = require('serverless-http');
-const path = require('path');
-const fs = require('fs'); // Módulo para leer archivos
+const path = 'path'; // No se utiliza directamente, pero es buena práctica tenerlo
+const fs = require('fs');
 const fetch = require('node-fetch');
 const nodemailer = require('nodemailer');
 const multer = require('multer');
@@ -12,7 +12,7 @@ const { PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, GMAIL_USER, GMAIL_APP_PASSWORD }
 const app = express();
 const router = express.Router();
 
-// --- CONFIGURACIÓN Y MIDDLEWARE ---
+// --- CONFIGURACIÓN ---
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 const transporter = nodemailer.createTransport({
@@ -23,18 +23,18 @@ const baseURL = "https://api-m.paypal.com";
 
 // --- FUNCIÓN PARA LEER LOS CURSOS ---
 function getCourses() {
-    // Construye la ruta absoluta al archivo JSON dentro de la función
-    const filePath = path.resolve(__dirname, 'data', 'courses.json');
+    // __dirname es la ruta del directorio actual de la función
+    const filePath = require.resolve('./data/courses.json');
     try {
         const fileContent = fs.readFileSync(filePath, 'utf8');
         return JSON.parse(fileContent);
     } catch (error) {
         console.error("ERROR AL LEER courses.json:", error);
-        return []; // Devuelve un array vacío si hay un error
+        return [];
     }
 }
 
-// --- Funciones auxiliares de PayPal ---
+// --- FUNCIONES AUXILIARES DE PAYPAL ---
 const generateAccessToken = async () => {
     try {
         const auth = Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_CLIENT_SECRET}`).toString("base64");
@@ -47,16 +47,18 @@ const generateAccessToken = async () => {
         return data.access_token;
     } catch (error) {
         console.error("Error al generar el token de acceso:", error);
+        return null;
     }
 };
 
 async function handleResponse(response) {
-    if (response.status === 200 || response.status === 201) {
+    if (response.ok) {
         return response.json();
     }
     const errorMessage = await response.text();
     throw new Error(errorMessage);
 }
+
 
 // --- RUTAS DE LA API ---
 
@@ -64,15 +66,17 @@ async function handleResponse(response) {
 router.post("/orders", async (req, res) => {
     try {
         const { courseId } = req.body;
-        const courses = getCourses(); // Usamos la nueva función
+        const courses = getCourses();
         const course = courses.find(c => c.id === courseId);
         
         if (!course) {
-            console.error(`Producto no encontrado para ID: ${courseId}. Cursos disponibles: ${courses.length}`);
+            console.error(`Producto no encontrado para ID: ${courseId}`);
             return res.status(404).json({ error: "Producto no encontrado." });
         }
 
         const accessToken = await generateAccessToken();
+        if(!accessToken) throw new Error("No se pudo obtener el token de acceso de PayPal");
+
         const url = `${baseURL}/v2/checkout/orders`;
         const payload = {
             intent: "CAPTURE",
@@ -85,7 +89,7 @@ router.post("/orders", async (req, res) => {
         const data = await handleResponse(response);
         res.status(200).json(data);
     } catch (error) {
-        console.error("Error al crear la orden:", error);
+        console.error("Error al crear la orden:", error.message);
         res.status(500).json({ error: "No se pudo crear la orden." });
     }
 });
@@ -95,16 +99,21 @@ router.post("/orders/:orderID/capture", async (req, res) => {
     try {
         const { orderID } = req.params;
         const { customerName, customerEmail, courseId } = req.body;
+        
         const accessToken = await generateAccessToken();
+        if(!accessToken) throw new Error("No se pudo obtener el token de acceso de PayPal para la captura");
+
         const url = `${baseURL}/v2/checkout/orders/${orderID}/capture`;
         const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}`}});
         const captureData = await handleResponse(response);
+
         if (captureData.status === 'COMPLETED') {
-            const courses = getCourses(); // Usamos la nueva función
+            const courses = getCourses();
             const course = courses.find(c => c.id === courseId);
             const productName = course ? course.title : 'Producto no encontrado';
             const amount = captureData.purchase_units[0].payments.captures[0].amount;
             const mailOptions = { from: GMAIL_USER, to: 'thealexj9@gmail.com', subject: `✅ Nuevo Pago Recibido: ${productName}`, html: `<h1>¡Nueva Venta!</h1><p>Se ha recibido un nuevo pago a través de PayPal.</p><hr><h3>Detalles de la Compra:</h3><ul><li><b>Producto:</b> ${productName}</li><li><b>Monto:</b> ${amount.value} ${amount.currency_code}</li><li><b>ID de Transacción PayPal:</b> ${captureData.id}</li></ul><hr><h3>Datos del Cliente:</h3><ul><li><b>Nombre:</b> ${customerName}</li><li><b>Correo Electrónico:</b> ${customerEmail}</li></ul>` };
+            
             transporter.sendMail(mailOptions, (error, info) => {
                 if (error) console.error("Error al enviar el correo:", error);
                 else console.log("Correo de notificación enviado:", info.response);
@@ -112,7 +121,7 @@ router.post("/orders/:orderID/capture", async (req, res) => {
         }
         res.status(200).json(captureData);
     } catch (error) {
-        console.error("Error al capturar el pago:", error);
+        console.error("Error al capturar el pago:", error.message);
         res.status(500).json({ error: "No se pudo procesar el pago." });
     }
 });
@@ -122,7 +131,7 @@ router.post('/crypto-payment', upload.single('proof'), (req, res) => {
     try {
         const { customerName, customerEmail, productName, productPrice } = req.body;
         const proofFile = req.file;
-        if (!proofFile) return res.status(400).json({ error: 'No se ha subido ningún archivo.' });
+        if (!proofFile) return res.status(400).send({ error: 'No se ha subido ningún archivo.' });
 
         const mailOptions = {
             from: GMAIL_USER,
@@ -135,16 +144,17 @@ router.post('/crypto-payment', upload.single('proof'), (req, res) => {
         transporter.sendMail(mailOptions, (error, info) => {
             if (error) {
                 console.error("Error al enviar el correo de cripto:", error);
-                return res.status(500).json({ error: 'Error al enviar el correo.' });
+                return res.status(500).send({ error: 'Error al enviar el correo.' });
             }
             console.log("Correo de cripto enviado:", info.response);
-            res.status(200).json({ message: 'Comprobante enviado con éxito.' });
+            res.status(200).send({ message: 'Comprobante enviado con éxito.' });
         });
     } catch (error) {
         console.error("Error en la ruta /api/crypto-payment:", error);
-        res.status(500).json({ error: 'Error interno del servidor.' });
+        res.status(500).send({ error: 'Error interno del servidor.' });
     }
 });
+
 
 // --- Configuración final para Netlify ---
 app.use('/api/', router);
